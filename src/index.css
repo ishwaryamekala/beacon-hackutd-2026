@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --glow: 0 0 12px rgba(34, 211, 238, 0.45);
+}
+
+/* Clarity Mode: drops glow and raises contrast. Accessibility features that
+   only look accessible are worse than none, so this is a real toggle, not a
+   filter over the same palette. */
+:root[data-clarity="on"] {
+  --glow: none;
+}
+:root[data-clarity="on"] .neon-text { text-shadow: none !important; }
+:root[data-clarity="on"] .neon-edge { box-shadow: none !important; border-color: #fff !important; }
+
+body { @apply bg-void text-slate-100 font-mono antialiased; margin: 0; }
+.neon-text { text-shadow: var(--glow); }
+.neon-edge { box-shadow: var(--glow); }
+
+/* Visible focus everywhere — keyboard users are a core audience here. */
+:focus-visible { outline: 3px solid #22d3ee; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
