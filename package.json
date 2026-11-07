@@ -1,5 +1,5 @@
 {
-  "name": "pathzero",
+  "name": "beacon",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "test:routing": "tsx src/lib/routing.test.ts"
+    "test:routing": "tsx src/lib/routing.test.ts",
+    "agent": "tsx agent/dev.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
