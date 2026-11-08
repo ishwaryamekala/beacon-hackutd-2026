@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { DEMO_OBSTACLES } from "../lib/campus";
 import type { Obstacle } from "../lib/graph";
@@ -8,6 +8,9 @@ type RowShape = {
   edge_from: string;
   edge_to: string;
   kind: Obstacle["kind"];
+  note: string | null;
+  source: Obstacle["source"] | null;
+  photo_url: string | null;
   reported_at: string;
   confirmations: number;
   disputes: number;
@@ -23,7 +26,13 @@ const fromRow = (r: RowShape): Obstacle => ({
   confirmations: r.confirmations,
   disputes: r.disputes,
   resolved: r.resolved,
+  note: r.note ?? undefined,
+  source: r.source ?? undefined,
+  photoUrl: r.photo_url ?? undefined,
 });
+
+/** Two or more net disputes and the community considers the obstacle gone. */
+const RESOLVE_THRESHOLD = -2;
 
 /**
  * Reports live in Supabase when it's configured, and in memory when it isn't.
@@ -34,14 +43,26 @@ export function useReports() {
   const [reports, setReports] = useState<Obstacle[]>(DEMO_OBSTACLES);
   const [live, setLive] = useState(false);
 
+  // Always-current copy of the list. Event handlers read from here instead of
+  // a closed-over `reports`, so back-to-back votes don't compute from stale counts.
+  const reportsRef = useRef<Obstacle[]>(DEMO_OBSTACLES);
+  const commit = useCallback((next: Obstacle[]) => {
+    reportsRef.current = next;
+    setReports(next);
+  }, []);
+
   const refresh = useCallback(async () => {
     if (!supabase) return;
-    const { data, error } = await supabase.from("reports").select("*").eq("resolved", false);
+    const { data, error } = await supabase
+      .from("reports")
+      .select("*")
+      .eq("resolved", false)
+      .order("reported_at", { ascending: false });
     if (!error && data) {
-      setReports((data as RowShape[]).map(fromRow));
+      commit((data as RowShape[]).map(fromRow));
       setLive(true);
     }
-  }, []);
+  }, [commit]);
 
   useEffect(() => {
     refresh();
@@ -65,45 +86,53 @@ export function useReports() {
         edgeTo,
         kind,
         reportedAt: Date.now(),
-        confirmations: 1, // the reporter counts as the first voice
+        confirmations: 1, // the reporter counts as the first voice (DB default is also 1)
         disputes: 0,
         resolved: false,
+        note,
+        source: "web",
       };
-      setReports((r) => [...r, optimistic]);
+      commit([...reportsRef.current, optimistic]);
       if (supabase) {
-        await supabase.from("reports").insert({
-          edge_from: edgeFrom, edge_to: edgeTo, kind, note, confirmations: 1,
+        const { error } = await supabase.from("reports").insert({
+          edge_from: edgeFrom,
+          edge_to: edgeTo,
+          kind,
+          note,
+          source: "web",
         });
+        if (error) console.warn("Beacon: report not saved", error.message);
         refresh();
       }
     },
-    [refresh]
+    [commit, refresh]
   );
 
   const vote = useCallback(
     async (id: string, agrees: boolean) => {
-      setReports((rs) =>
-        rs.map((r) =>
-          r.id === id
-            ? { ...r, confirmations: r.confirmations + (agrees ? 1 : 0), disputes: r.disputes + (agrees ? 0 : 1) }
-            : r
+      const current = reportsRef.current.find((r) => r.id === id);
+      if (!current) return;
+
+      const confirmations = current.confirmations + (agrees ? 1 : 0);
+      const disputes = current.disputes + (agrees ? 0 : 1);
+      const resolved = current.resolved || (!agrees && confirmations - disputes <= RESOLVE_THRESHOLD);
+
+      commit(
+        reportsRef.current.map((r) =>
+          r.id === id ? { ...r, confirmations, disputes, resolved } : r
         )
       );
+
       if (supabase && !id.startsWith("local_")) {
-        const current = reports.find((r) => r.id === id);
-        if (current) {
-          await supabase
-            .from("reports")
-            .update({
-              confirmations: current.confirmations + (agrees ? 1 : 0),
-              disputes: current.disputes + (agrees ? 0 : 1),
-            })
-            .eq("id", id);
-          refresh();
-        }
+        const { error } = await supabase
+          .from("reports")
+          .update({ confirmations, disputes, resolved })
+          .eq("id", id);
+        if (error) console.warn("Beacon: vote not saved", error.message);
+        refresh();
       }
     },
-    [reports, refresh]
+    [commit, refresh]
   );
 
   return { reports, submit, vote, live };

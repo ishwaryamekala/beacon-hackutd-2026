@@ -49,6 +49,9 @@ export interface Obstacle {
   confirmations: number;
   disputes: number;
   resolved: boolean;
+  note?: string;
+  source?: "web" | "imessage" | "sms" | "email";
+  photoUrl?: string;
 }
 
 export interface CampusGraph {
