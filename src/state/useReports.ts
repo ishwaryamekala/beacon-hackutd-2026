@@ -45,14 +45,15 @@ export function useReports() {
 
   useEffect(() => {
     refresh();
-    if (!supabase) return;
+    const client = supabase;
+    if (!client) return;
     // Realtime is what sells the demo: text ZERO, watch the website reroute.
-    const channel = supabase
+    const channel = client
       .channel("reports-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "reports" }, refresh)
       .subscribe();
     return () => {
-      supabase.removeChannel(channel);
+      client.removeChannel(channel);
     };
   }, [refresh]);
 
