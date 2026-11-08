@@ -27,3 +27,42 @@ body { @apply bg-void text-slate-100 font-mono antialiased; margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* ---- Map (MapView) ---------------------------------------------------- */
+/* Tint the dark basemap toward the neon palette without redrawing it. */
+.beacon-map .leaflet-tile-pane {
+  filter: saturate(0.6) hue-rotate(160deg) brightness(0.9) contrast(1.1);
+}
+
+/* Accessible route: a dash pattern that slides forward so the route reads as flowing. */
+.route-flow {
+  animation: route-flow 1.6s linear infinite;
+  filter: drop-shadow(0 0 3px rgba(212, 255, 58, 0.6));
+}
+@keyframes route-flow {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -16; }
+}
+
+/* Unresolved obstacle nodes breathe. transform-box keeps the scale centred on the dot. */
+.pulse-marker {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: obstacle-pulse 1.8s ease-in-out infinite;
+}
+@keyframes obstacle-pulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 2px rgba(244, 114, 182, 0.6)); }
+  50% { transform: scale(1.35); filter: drop-shadow(0 0 8px rgba(244, 114, 182, 0.9)); }
+}
+
+/* Leaflet tooltips in the neon palette instead of the default white box. */
+.beacon-map .leaflet-tooltip {
+  background: #0d1018;
+  color: #e2e8f0;
+  border: 1px solid rgba(168, 85, 247, 0.6);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.35);
+}
+.beacon-map .leaflet-tooltip::before { display: none; }
