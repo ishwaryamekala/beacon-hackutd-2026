@@ -45,9 +45,12 @@ the SQL yourself. The file is safe to run again if you need to retry.
    - **Project URL**, which looks like `https://abcd1234.supabase.co`
    - **anon / publishable** key, the long one labelled `anon` or `publishable`
 
-**Do NOT use the `service_role` or `secret` key.** It bypasses all security. It
-must never go into a `VITE_` variable, because anything with `VITE_` in the name
-is shipped to every browser that opens the site.
+4. Also copy the **`service_role` / secret** key. Beau's iMessage server (not the
+   website) needs it to read the `subscribers` table, which holds phone numbers.
+
+**The secret key goes ONLY in `SUPABASE_SERVICE_ROLE_KEY`, never in a `VITE_`
+variable.** Anything with `VITE_` in its name is shipped to every browser that
+opens the site, and the secret key bypasses all security.
 
 ## 5. Put the keys in `.env`
 
@@ -69,11 +72,12 @@ is shipped to every browser that opens the site.
    open -e .env
    ```
 
-4. Fill in the two Supabase lines, pasting the values you copied in step 4:
+4. Fill in the three Supabase lines, pasting the values you copied in step 4:
 
    ```
    VITE_SUPABASE_URL=https://abcd1234.supabase.co
    VITE_SUPABASE_ANON_KEY=your-anon-or-publishable-key-here
+   SUPABASE_SERVICE_ROLE_KEY=your-secret-service-role-key-here
    ```
 
 5. Save with Cmd+S and close the window.

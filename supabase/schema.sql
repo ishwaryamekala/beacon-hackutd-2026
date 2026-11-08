@@ -64,9 +64,9 @@ drop policy if exists "demo: anon read subscribers"   on subscribers;
 drop policy if exists "demo: anon insert subscribers" on subscribers;
 drop policy if exists "demo: anon update subscribers" on subscribers;
 
-create policy "demo: anon read subscribers"   on subscribers for select to anon using (true);
-create policy "demo: anon insert subscribers" on subscribers for insert to anon with check (true);
-create policy "demo: anon update subscribers" on subscribers for update to anon using (true) with check (true);
+-- No anon policies on purpose: this table holds phone numbers / chat ids.
+-- RLS with no policies = the public web key can't read it. Beau's server uses
+-- SUPABASE_SERVICE_ROLE_KEY (server-only), which bypasses RLS.
 
 -- ---------------------------------------------------------------------------
 -- verification_asks: Beau asks a subscriber "is this still broken?" and records the answer
@@ -86,9 +86,9 @@ drop policy if exists "demo: anon read verification_asks"   on verification_asks
 drop policy if exists "demo: anon insert verification_asks" on verification_asks;
 drop policy if exists "demo: anon update verification_asks" on verification_asks;
 
-create policy "demo: anon read verification_asks"   on verification_asks for select to anon using (true);
-create policy "demo: anon insert verification_asks" on verification_asks for insert to anon with check (true);
-create policy "demo: anon update verification_asks" on verification_asks for update to anon using (true) with check (true);
+-- No anon policies on purpose: this table holds phone numbers / chat ids.
+-- RLS with no policies = the public web key can't read it. Beau's server uses
+-- SUPABASE_SERVICE_ROLE_KEY (server-only), which bypasses RLS.
 
 -- ---------------------------------------------------------------------------
 -- Realtime: the website listens for changes to reports so a text from Beau
