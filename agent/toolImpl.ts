@@ -85,7 +85,12 @@ export function find_accessible_route(args: {
 }) {
   const pick = (phrase: string) => {
     if (UTD_DEMO.nodes[phrase]) return phrase;
-    return resolve_location({ phrase }).candidates[0]?.id ?? null;
+    const { candidates } = resolve_location({ phrase });
+    if (!candidates.length) return null;
+    // "the library" ties between Steps, Ramp and Entrance. A destination is a
+    // door, never a staircase, so among near-ties prefer an actual entrance.
+    const close = candidates.filter((c) => c.score >= candidates[0].score * 0.85);
+    return (close.find((c) => c.id.endsWith("_door")) ?? candidates[0]).id;
   };
   const fromId = pick(args.from);
   const toId = pick(args.to);

@@ -8,14 +8,16 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test:routing": "tsx src/lib/routing.test.ts",
-    "agent": "tsx agent/dev.ts"
+    "agent": "tsx --env-file-if-exists=.env agent/dev.ts",
+    "imessage": "tsx --env-file-if-exists=.env agent/photon.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
     "leaflet": "^1.9.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-leaflet": "^4.2.1"
+    "react-leaflet": "^4.2.1",
+    "spectrum-ts": "^12.15.0"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.12",

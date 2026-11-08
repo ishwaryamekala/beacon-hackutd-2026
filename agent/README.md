@@ -54,3 +54,17 @@ const res = await fetch(`${process.env.NVIDIA_BASE_URL}/chat/completions`, {
 ```
 
 Get a key at build.nvidia.com. Keep it server-side — never prefix it with `VITE_`.
+
+## Running Beau on iMessage (Photon 2.0)
+
+Beau connects through Photon's Spectrum SDK (`spectrum-ts`). It keeps a live
+connection to Photon's cloud, so there is no webhook URL or tunnel to expose.
+
+1. Sign up at [app.photon.codes](https://app.photon.codes), create a project,
+   and copy its **project ID** and **secret**.
+2. `cp .env.example .env` and fill in `PHOTON_PROJECT_ID` and
+   `PHOTON_PROJECT_SECRET` (and `NVIDIA_API_KEY` for the full Nemotron agent).
+3. `npm run imessage`, then text the iMessage number shown in your Photon dashboard.
+
+Without `NVIDIA_API_KEY`, Beau still answers "from A to B" route requests
+straight from the A* router, so the iMessage demo never goes dark.
