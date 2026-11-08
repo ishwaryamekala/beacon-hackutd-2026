@@ -27,7 +27,7 @@ const ALIASES: Record<string, string[]> = {
   lib_stair:  ["mcdermott", "steps"],
   lib_ramp:   ["mcdermott"],
   lib_l2:     ["mcdermott", "elevator", "lift", "upstairs", "floor", "level"],
-  su_north:   ["food", "dining", "comet", "cafeteria", "eat", "hungry", "lunch"],
+  su_north:   ["center", "union", "su", "food", "dining", "comet", "cafeteria", "eat", "hungry", "lunch"],
   su_plaza:   ["food", "dining", "eat", "lunch"],
   ecsw_door:  ["engineering", "computer", "science", "ecs"],
   ecsw_plaza: ["engineering", "ecs"],
