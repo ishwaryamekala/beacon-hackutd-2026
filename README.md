@@ -35,7 +35,7 @@ That 29 seconds is the product. It's the number nobody measures.
 | Supabase wiring + realtime | Built, with offline fallback for bad wifi |
 | Leaflet map, both routes drawn | Built |
 | React UI + Clarity Mode | Built |
-| ZERO agent loop (Nemotron tool calling) | Built — needs an API key to run |
+| Beau agent loop (Nemotron tool calling) | Built — needs an API key to run |
 | Photon iMessage bridge | Built — needs Photon webhook pointed at it |
 
 **Nothing has been run.** This machine has no Node, so the TypeScript has never
@@ -67,19 +67,19 @@ src/lib/supabase.ts     reports table + schema
 src/state/useReports.ts live reports, offline fallback
 src/components/         MapView (Leaflet), ReportPanel
 src/App.tsx             route comparison + Clarity Mode
-agent/tools.ts          ZERO's tool schema
+agent/tools.ts          Beau's tool schema
 agent/toolImpl.ts       what the tools actually do   <- all maths lives here
-agent/zero.ts           Nemotron tool-calling loop
+agent/beau.ts           Nemotron tool-calling loop
 agent/photon.ts         iMessage bridge
-agent/dev.ts            talk to ZERO from the terminal
+agent/dev.ts            talk to Beau from the terminal
 ```
 
 ## The demo to rehearse
 
 1. Website open, route Union → Library. Shows the step-free route and the
    **29-second gap**.
-2. On your phone, text ZERO: *"the elevator in the library is broken"*.
-3. ZERO resolves the location, asks to confirm, files the report.
+2. On your phone, text Beau: *"the elevator in the library is broken"*.
+3. Beau resolves the location, asks to confirm, files the report.
 4. The website reroutes **live** — the path turns, or goes red if nothing is left.
 
 That loop hits Photon, Nemotron, Design and the community story in 40 seconds.

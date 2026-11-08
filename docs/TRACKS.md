@@ -6,7 +6,7 @@
 Your original write-up never mentions Nemotron. It says "an AI model will
 interpret natural-language requests" — make that model Nemotron and you're in.
 Their bar is "beyond a chatbot: multi-step workflows, tool integration,
-real-world applicability", and ZERO already matches it: *"the ramp by the
+real-world applicability", and Beau already matches it: *"the ramp by the
 library is blocked"* → resolve the location → ask which ramp → file the report →
 re-route affected users. That's a plan, not a reply. Prize is 2x RTX 5080.
 
@@ -40,7 +40,7 @@ Four tracks, an A* router, community verification, a Supabase backend, an
 iMessage agent, and a Leaflet map is more than a weekend. Suggested cut:
 
 1. Router + route comparison UI **(done — this is your differentiator)**
-2. ZERO on Nemotron with 3 tools, text only
+2. Beau on Nemotron with 3 tools, text only
 3. Reports writing to Supabase and changing routes live
 4. Map, if time
 5. Leaderboard — only if everything else ships

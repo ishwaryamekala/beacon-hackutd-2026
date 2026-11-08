@@ -1,4 +1,4 @@
-# ZERO — the agent layer
+# Beau — the agent layer
 
 Two surfaces, one brain:
 
