@@ -6,7 +6,7 @@
 // without the user ever naming a graph edge.
 
 import { TOOLS, SYSTEM_PROMPT } from "./tools";
-import { IMPL } from "./toolImpl";
+import { IMPL, type ToolContext } from "./toolImpl";
 
 const BASE = process.env.NVIDIA_BASE_URL ?? "https://integrate.api.nvidia.com/v1";
 const MODEL = process.env.NEMOTRON_MODEL ?? "nvidia/llama-3.3-nemotron-super-49b-v1";
@@ -24,7 +24,8 @@ const MAX_TURNS = 6;
 
 export async function runBeau(
   userText: string,
-  history: Msg[] = []
+  history: Msg[] = [],
+  ctx: ToolContext = { source: "imessage" }
 ): Promise<{ reply: string; steps: string[]; history: Msg[] }> {
   if (!KEY) throw new Error("NVIDIA_API_KEY is not set");
 
@@ -63,7 +64,14 @@ export async function runBeau(
         /* malformed args: let the tool reject them below */
       }
       const fn = IMPL[name];
-      const result = fn ? fn(args) : { error: `unknown tool ${name}` };
+      let result: unknown;
+      try {
+        result = fn ? await fn(args, ctx) : { error: `unknown tool ${name}` };
+      } catch (err) {
+        // A tool failure (e.g. database down) goes back to the model as data,
+        // so Beau can say so honestly instead of the whole turn crashing.
+        result = { error: "tool_failed", detail: (err as Error).message };
+      }
       steps.push(`${name}(${JSON.stringify(args)})`);
       messages.push({
         role: "tool",

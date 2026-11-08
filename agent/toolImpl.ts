@@ -6,9 +6,7 @@
 import { UTD_DEMO } from "../src/lib/campus";
 import { compareRoutes, DEFAULT_PREFS, type Preferences } from "../src/lib/routing";
 import type { Obstacle } from "../src/lib/graph";
-
-/** Reports live here when there's no Supabase configured. */
-const memoryReports: Obstacle[] = [];
+import * as store from "./store";
 
 /** Words that carry no location meaning. Without this, "the ramp by the
  *  library" matches "The Plinth" as strongly as "Library — Ramp", because
@@ -78,22 +76,34 @@ export function resolve_location({ phrase }: { phrase: string }) {
   return { candidates: scored.slice(0, 4), ambiguous };
 }
 
-export function find_accessible_route(args: {
+/** Who Beau is talking to, so tools can act on that person's behalf. */
+export interface ToolContext {
+  subscriber?: store.Subscriber;
+  source: store.Source;
+  /** A photo the user texted that hasn't been attached to a report yet. */
+  pendingPhotoUrl?: string;
+  /** Set by submit_report so the bridge knows the photo was used. */
+  usedPhoto?: boolean;
+}
+
+/** Natural phrase or node id -> node id. Destinations prefer doors. */
+function pickNode(phrase: string): string | null {
+  if (UTD_DEMO.nodes[phrase]) return phrase;
+  const { candidates } = resolve_location({ phrase });
+  if (!candidates.length) return null;
+  // "the library" ties between Steps, Ramp and Entrance. A destination is a
+  // door, never a staircase, so among near-ties prefer an actual entrance.
+  const close = candidates.filter((c) => c.score >= candidates[0].score * 0.85);
+  return (close.find((c) => c.id.endsWith("_door")) ?? candidates[0]).id;
+}
+
+export async function find_accessible_route(args: {
   from: string; to: string;
   avoid_stairs?: boolean; avoid_elevators?: boolean;
   max_grade?: number; min_width_cm?: number;
 }) {
-  const pick = (phrase: string) => {
-    if (UTD_DEMO.nodes[phrase]) return phrase;
-    const { candidates } = resolve_location({ phrase });
-    if (!candidates.length) return null;
-    // "the library" ties between Steps, Ramp and Entrance. A destination is a
-    // door, never a staircase, so among near-ties prefer an actual entrance.
-    const close = candidates.filter((c) => c.score >= candidates[0].score * 0.85);
-    return (close.find((c) => c.id.endsWith("_door")) ?? candidates[0]).id;
-  };
-  const fromId = pick(args.from);
-  const toId = pick(args.to);
+  const fromId = pickNode(args.from);
+  const toId = pickNode(args.to);
   if (!fromId || !toId) {
     return { error: "unknown_location", from: args.from, to: args.to };
   }
@@ -106,9 +116,9 @@ export function find_accessible_route(args: {
     minWidthCm: args.min_width_cm ?? DEFAULT_PREFS.minWidthCm,
   };
 
-  const { accessible, shortest, penaltySeconds } = compareRoutes(
-    UTD_DEMO, fromId, toId, prefs, memoryReports
-  );
+  // Live community reports, the same ones the web map shows.
+  const reports = await store.openReports().catch(() => [] as Obstacle[]);
+  const { accessible, shortest, penaltySeconds } = compareRoutes(UTD_DEMO, fromId, toId, prefs, reports);
 
   if (!accessible) {
     return {
@@ -120,65 +130,107 @@ export function find_accessible_route(args: {
     };
   }
 
+  const avoided = reports.filter((r) =>
+    shortest?.steps.some((s) => sameEdge(s.edge, r)) && !accessible.steps.some((s) => sameEdge(s.edge, r))
+  );
+
   return {
     ok: true,
+    from_id: fromId,
+    to_id: toId,
     from: UTD_DEMO.nodes[fromId].name,
     to: UTD_DEMO.nodes[toId].name,
     minutes: +(accessible.totalSeconds / 60).toFixed(1),
     meters: Math.round(accessible.totalMeters),
     penalty_seconds: penaltySeconds === null ? null : Math.round(penaltySeconds),
-    directions: accessible.steps.map((s) => `${s.edge.kind} to ${s.to.name}`),
+    directions: accessible.steps.map((s) => `${s.edge.kind.replace(/_/g, " ")} to ${s.to.name}`),
+    avoiding_reports: avoided.map((r) => `${r.kind} at ${UTD_DEMO.nodes[r.edgeTo]?.name ?? r.edgeTo}`),
   };
 }
 
-export function submit_report(args: {
-  edge_from: string; edge_to: string;
-  kind: Obstacle["kind"]; note?: string;
-}) {
-  const edge = UTD_DEMO.edges.find(
-    (e) =>
-      (e.from === args.edge_from && e.to === args.edge_to) ||
-      (e.from === args.edge_to && e.to === args.edge_from)
-  );
-  if (!edge) return { ok: false, reason: "no_such_edge" };
+const sameEdge = (e: { from: string; to: string }, r: { edgeFrom: string; edgeTo: string }) =>
+  (e.from === r.edgeFrom && e.to === r.edgeTo) || (e.from === r.edgeTo && e.to === r.edgeFrom);
 
-  const report: Obstacle = {
-    id: `agent_${Date.now()}`,
-    edgeFrom: args.edge_from,
-    edgeTo: args.edge_to,
+/** Which kinds of edge each report kind most plausibly refers to. */
+const LIKELY: Record<Obstacle["kind"], string[]> = {
+  broken: ["elevator", "auto_door", "door"],
+  blocked: ["ramp", "curb_cut", "path", "door"],
+  construction: ["path", "ramp", "curb_cut"],
+  crowded: ["path", "elevator"],
+};
+
+/** A place ("the library ramp") -> the specific edge a report should attach to. */
+function edgeForPlace(place: string, kind: Obstacle["kind"]) {
+  const node = resolve_location({ phrase: place }).candidates[0]?.id;
+  if (!node) return null;
+  const touching = UTD_DEMO.edges.filter((e) => e.from === node || e.to === node);
+  for (const k of LIKELY[kind]) {
+    const hit = touching.find((e) => e.kind === k);
+    if (hit) return hit;
+  }
+  return touching[0] ?? null;
+}
+
+export async function submit_report(
+  args: { edge_from?: string; edge_to?: string; place?: string; kind: Obstacle["kind"]; note?: string },
+  ctx?: ToolContext
+) {
+  const edge =
+    args.edge_from && args.edge_to
+      ? UTD_DEMO.edges.find((e) => sameEdge(e, { edgeFrom: args.edge_from!, edgeTo: args.edge_to! }))
+      : args.place
+        ? edgeForPlace(args.place, args.kind)
+        : null;
+  if (!edge) return { ok: false, reason: "no_such_place_or_edge" };
+
+  const report = await store.insertReport({
+    edgeFrom: edge.from,
+    edgeTo: edge.to,
     kind: args.kind,
-    reportedAt: Date.now(),
-    confirmations: 1,
-    disputes: 0,
-    resolved: false,
-  };
-  memoryReports.push(report);
+    note: args.note,
+    source: ctx?.source ?? "imessage",
+    photoUrl: ctx?.pendingPhotoUrl,
+    reportedBy: ctx?.subscriber?.id,
+  });
+  if (ctx?.pendingPhotoUrl) ctx.usedPhoto = true;
   return {
     ok: true,
     report_id: report.id,
-    needs_confirmations: Math.max(0, 2 - (report.confirmations - report.disputes)),
+    where: `${UTD_DEMO.nodes[edge.from].name} → ${UTD_DEMO.nodes[edge.to].name} (${edge.kind.replace(/_/g, " ")})`,
+    status: "unverified",
+    has_photo: Boolean(ctx?.pendingPhotoUrl),
+    note: "Shows on the live map now. One more confirmation from someone nearby makes it verified and reroutes everyone.",
   };
 }
 
-export function confirm_report({ report_id, agrees }: { report_id: string; agrees: boolean }) {
-  const r = memoryReports.find((x) => x.id === report_id);
+export async function confirm_report({ report_id, agrees }: { report_id: string; agrees: boolean }) {
+  const r = await store.voteReport(report_id, agrees);
   if (!r) return { ok: false, reason: "no_such_report" };
-  if (agrees) r.confirmations += 1;
-  else r.disputes += 1;
-  const net = r.confirmations - r.disputes;
-  return { ok: true, net, verified: net >= 2 };
+  return { ok: true, ...r };
 }
 
-const prefsStore = new Map<string, string>();
-export function save_preference({ key, value }: { key: string; value: string }) {
-  prefsStore.set(key, value);
-  return { ok: true, remembered: Object.fromEntries(prefsStore) };
+/** Watch a route: Beau texts this person if a new report breaks it. */
+export async function save_route({ from, to }: { from: string; to: string }, ctx?: ToolContext) {
+  if (!ctx?.subscriber) return { ok: false, reason: "not_available_on_this_channel" };
+  const f = pickNode(from), t = pickNode(to);
+  if (!f || !t) return { ok: false, reason: "unknown_location" };
+  await store.updateSubscriber(ctx.subscriber.id, { saved_from: f, saved_to: t, alerts: true });
+  ctx.subscriber.saved_from = f; ctx.subscriber.saved_to = t; ctx.subscriber.alerts = true;
+  return { ok: true, watching: `${UTD_DEMO.nodes[f].name} → ${UTD_DEMO.nodes[t].name}` };
 }
 
-export const IMPL: Record<string, (args: any) => unknown> = {
+export async function set_alerts({ on }: { on: boolean }, ctx?: ToolContext) {
+  if (!ctx?.subscriber) return { ok: false, reason: "not_available_on_this_channel" };
+  await store.updateSubscriber(ctx.subscriber.id, { alerts: on });
+  ctx.subscriber.alerts = on;
+  return { ok: true, alerts: on };
+}
+
+export const IMPL: Record<string, (args: any, ctx?: ToolContext) => unknown> = {
   resolve_location,
   find_accessible_route,
   submit_report,
   confirm_report,
-  save_preference,
+  save_route,
+  set_alerts,
 };

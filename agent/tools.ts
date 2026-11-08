@@ -48,16 +48,17 @@ export const TOOLS = [
     function: {
       name: "submit_report",
       description:
-        "File an accessibility obstacle report. Only call once you know which specific edge is affected — use resolve_location first if unsure.",
+        "File an accessibility obstacle report to the shared live map. Give either `place` (a specific spot the user confirmed, e.g. 'McDermott Library ramp') or edge_from+edge_to node ids. If the user texted a photo it is attached automatically. Only call after the user confirmed the exact spot.",
       parameters: {
         type: "object",
         properties: {
+          place: { type: "string", description: "The confirmed specific spot, natural language" },
           edge_from: { type: "string" },
           edge_to: { type: "string" },
           kind: { type: "string", enum: ["broken", "blocked", "construction", "crowded"] },
-          note: { type: "string" },
+          note: { type: "string", description: "Short description in the user's words" },
         },
-        required: ["edge_from", "edge_to", "kind"],
+        required: ["kind"],
       },
     },
   },
@@ -79,15 +80,24 @@ export const TOOLS = [
   {
     type: "function",
     function: {
-      name: "save_preference",
-      description: "Remember a mobility preference for future conversations. Only call after the user has explicitly agreed to be remembered.",
+      name: "save_route",
+      description: "Watch a route for this person: if a new report breaks it, Beau texts them a reroute. Only call after they said yes to being alerted.",
       parameters: {
         type: "object",
-        properties: {
-          key: { type: "string", enum: ["avoid_stairs", "avoid_elevators", "max_grade", "min_width_cm"] },
-          value: { type: "string" },
-        },
-        required: ["key", "value"],
+        properties: { from: { type: "string" }, to: { type: "string" } },
+        required: ["from", "to"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "set_alerts",
+      description: "Turn this person's route alerts and verification questions on or off (e.g. when they text STOP).",
+      parameters: {
+        type: "object",
+        properties: { on: { type: "boolean" } },
+        required: ["on"],
       },
     },
   },
@@ -105,7 +115,11 @@ Rules:
 - Always state the time cost of the accessible route against the shortest one.
 - If no accessible route exists, say so plainly and suggest the nearest alternative
   entrance. Never invent a path.
-- Only call save_preference after the user has said yes to being remembered.
+- After giving a route someone uses regularly, offer once: "Want me to watch this route
+  and text you if something breaks?" Only call save_route after they say yes.
+- If the user sent a photo, ask where it is (one short question) before submit_report.
+- New reports start unverified. Tell the reporter it's on the live map and that one more
+  person confirming it reroutes everyone. Thank them; they just helped the next person.
 - Campus data is partly unverified. Say so when it matters. Never promise a path is
   accessible unless the data says it is.
 

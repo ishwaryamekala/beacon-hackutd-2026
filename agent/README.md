@@ -55,16 +55,27 @@ const res = await fetch(`${process.env.NVIDIA_BASE_URL}/chat/completions`, {
 
 Get a key at build.nvidia.com. Keep it server-side — never prefix it with `VITE_`.
 
-## Running Beau on iMessage (Photon 2.0)
+## Running Beau on iMessage (Photon 2.0 beta API)
 
-Beau connects through Photon's Spectrum SDK (`spectrum-ts`). It keeps a live
-connection to Photon's cloud, so there is no webhook URL or tunnel to expose.
+Beau is built on the **Photon 2.0 beta HTTP API** via the official client
+`@photon-ai/api`. One process runs two loops:
 
-1. Sign up at [app.photon.codes](https://app.photon.codes), create a project,
-   and copy its **project ID** and **secret**.
-2. `cp .env.example .env` and fill in `PHOTON_PROJECT_ID` and
-   `PHOTON_PROJECT_SECRET` (and `NVIDIA_API_KEY` for the full Nemotron agent).
-3. `npm run imessage`, then text the iMessage number shown in your Photon dashboard.
+| Loop | Photon 2.0 calls | What it does |
+|---|---|---|
+| Inbox | `listMessages`, `sendMessage` (text, `message.read`, `space.typing.update`), `getAttachment`, `downloadAttachment` | Answers texts and photos; files reports; YES/NO verification answers; STOP/START |
+| Watcher | `sendMessage` into existing spaces | When a report lands (text **or** web), texts people whose watched route it breaks, and asks up to two others to verify it |
 
-Without `NVIDIA_API_KEY`, Beau still answers "from A to B" route requests
-straight from the A* router, so the iMessage demo never goes dark.
+Every send uses an idempotency key, so retries never double-text anyone.
+Unsolicited texts are rate-limited (one per person per 10 minutes) and only go
+to people who texted Beau first, which is their opt-in. STOP always works.
+
+Setup:
+1. Photon 2.0 dashboard → create a project → **Settings** → copy the Project ID (`pho_prj_…`).
+2. **API keys** → New key with `project:read` + `project:write`.
+3. **iMessage** → add each tester's own number → assign a shared-pool number (that's Beau's number).
+4. Put `PHOTON_PROJECT_ID` and `PHOTON_API_KEY` in `.env` (plus Supabase + `NVIDIA_API_KEY` if you have them).
+5. `npm run imessage`, then text Beau's number from an assigned phone.
+
+Without `NVIDIA_API_KEY`, Beau still handles routes and reports with a
+rule-based parser. Without Supabase, state lives in memory and the web map
+won't see texted reports.
