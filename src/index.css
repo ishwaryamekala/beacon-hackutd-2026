@@ -4,7 +4,8 @@
 
 :root {
   color-scheme: dark;
-  --glow: 0 0 12px rgba(34, 211, 238, 0.45);
+  --glow: 0 0 12px rgba(212, 255, 58, 0.45);
+  --glow-cyan: 0 0 12px rgba(34, 211, 238, 0.45);
 }
 
 /* Clarity Mode: drops glow and raises contrast. Accessibility features that
@@ -21,7 +22,7 @@ body { @apply bg-void text-slate-100 font-mono antialiased; margin: 0; }
 .neon-edge { box-shadow: var(--glow); }
 
 /* Visible focus everywhere — keyboard users are a core audience here. */
-:focus-visible { outline: 3px solid #22d3ee; outline-offset: 2px; }
+:focus-visible { outline: 3px solid #d4ff3a; outline-offset: 2px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
