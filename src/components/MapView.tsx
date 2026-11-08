@@ -49,9 +49,19 @@ export default function MapView({
         // map are the accessible path to the same actions.
         aria-label="Campus accessibility map"
       >
+        {/* Esri Dark Gray Canvas: free, no API key. (CARTO now needs a key and
+            OSM's volunteer servers block apps.) Native tiles stop at z16, so
+            Leaflet upscales them for the closer campus zoom levels. */}
         <TileLayer
-          attribution='&copy; OpenStreetMap contributors'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          attribution="Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors"
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+          maxNativeZoom={16}
+          maxZoom={19}
+        />
+        <TileLayer
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}"
+          maxNativeZoom={16}
+          maxZoom={19}
         />
 
         {/* Shortest route underneath, dimmed: the one you can't take. */}
